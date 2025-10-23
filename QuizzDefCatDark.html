@@ -1,0 +1,483 @@
+<!--
+  PARTS CONFIGURABLES DEL CODI:
+
+  1. Bancs de preguntes:
+     - Arrays 'preguntasRA1' i 'preguntasRA2' a l’inici de l’script.
+     - Cada pregunta té:
+       - 'pregunta': text de la pregunta
+       - 'opciones': array amb opcions de resposta
+       - 'respuesta': índex (0-based) de l'opció correcta
+     - Pots afegir, modificar o eliminar preguntes i opcions segons necessitis.
+
+  2. Configuració de selecció de RA:
+     - Botons dins el div amb id="ra-buttons".
+     - Opcions disponibles: 'ambos', 'ra1', 'ra2'.
+     - Per afegir més categories o canviar noms, modifica aquest grup i lògica al script.
+
+  3. Configuració nombre de preguntes:
+     - Botons dins el div amb id="numPreguntas-buttons".
+     - Opcions: 10, 20, 30, 40, 50 i 'todas'.
+     - Pots modificar, afegir o eliminar valors.
+
+  4. Límits per defecte:
+     - Valor per defecte de 'totalPreguntas' (30).
+     - Comprovació que no es demanin més preguntes de les disponibles.
+     - Si vols canviar valors per defecte, modifica la variable 'totalPreguntas' o el codi al botó d'iniciar.
+
+  5. Estils CSS:
+     - Pots modificar colors, fonts i disposició dins la secció `<style>`.
+     - Classes importants per respostes: 
+       - .seleccionada (opció seleccionada)
+       - .correcta (resposta correcta)
+       - .incorrecta (resposta errònia)
+     - Botons i contenidors tenen classes i id per fer més fàcil la personalització.
+
+  6. Textos de botons i missatges:
+     - Textos com "Confirmar", "Següent", "Anterior", "Incorrecte", etc. estan dins l'HTML o l’script.
+     - Pots traduir o canviar aquests textos a la part HTML i dins les funcions JS.
+
+  7. Funcionalitats:
+     - Revisió de respostes després de finalitzar el quiz.
+     - Reinici del quiz.
+     - Barreja aleatòria de preguntes (funció mezclarArray).
+     - Limitació de navegació (botons anterior/següent).
+
+  8. Estructura general:
+     - Divs #config-container i #quiz-container separen la configuració de la prova i la pròpia prova.
+     - Si vols afegir més fases o canviar la navegació, modifica aquestes parts.
+
+  -----------------------------------------------
+  Per afegir preguntes noves, segueix l'estructura:
+
+    {
+      pregunta: "Text de la pregunta",
+      opciones: ["Opció 1", "Opció 2", "Opció 3", "Opció 4"],
+      respuesta: índex_de_la_opció_correcta (0-based)
+    }
+
+  -----------------------------------------------
+-->
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quiz RA1 / RA2 - Personalitzable</title>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 10px;
+      background-color: #333;
+      color: #eee;
+    }
+    h1 {
+      text-align: center;
+    }
+    .pregunta {
+      font-size: 1.2em;
+      margin-bottom: 15px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      margin: 8px 0;
+      padding: 12px;
+      font-size: 1em;
+      cursor: pointer;
+      border: 1px solid #eee;
+      background-color: #333;
+color: #eee;
+      border-radius: 5px;
+      transition: background-color 0.3s, transform 0.1s;
+    }
+    button:hover:not(:disabled) {
+      background-color: #555;
+    }
+    button:disabled {
+      cursor: default;
+      opacity: 0.8;
+    }
+
+    .seleccionada { background-color: #41475e; border-color: #007bff; }
+    .correcta { background-color: #28a745 !important; color: white; border-color: #1e7e34; }
+    .incorrecta { background-color: #dc3545 !important; color: white; border-color: #b21f2d; }
+
+    #resultat {
+      margin-top: 25px;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    #puntuatge {
+      margin-top: 20px;
+      font-size: 1.3em;
+      text-align: center;
+    }
+
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .nav-buttons button { width: 48%; }
+
+    #btnSeguent, #btnConfirmar, #btnAnterior, #btnRevision, #btnReiniciar, #btnIniciarQuiz {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #btnReiniciar { background-color: #28a745; }
+
+    #config-container {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    /* Estils per grups de botons de selecció */
+    .grupo-botones {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0 30px 0;
+    }
+
+    .grupo-botones button {
+      width: 100px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #eee;
+      background-color: #333;
+      color: #eee;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .grupo-botones button.seleccionat {
+      background-color: #007BFF;
+      color: white;
+      border-color: #0056b3;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>😎 Quizz de pràctica BBDD 😎</h1>
+
+  <!-- Pantalla de configuració -->
+  <div id="config-container">
+    <h2>Configura el teu examen</h2>
+    <p><b>Selecciona el RA:</b></p>
+    <div id="ra-buttons" class="grupo-botones">
+      <button data-value="ambos" class="seleccionat">Ambdós</button>
+      <button data-value="ra1">RA1</button>
+      <button data-value="ra2">RA2</button>
+    </div>
+
+    <p><b>Quantes preguntes vols respondre?</b></p>
+    <div id="numPreguntas-buttons" class="grupo-botones">
+      <button data-value="10">10</button>
+      <button data-value="20">20</button>
+      <button data-value="30" class="seleccionat">30</button>
+      <button data-value="40">40</button>
+      <button data-value="50">50</button>
+      <button data-value="todas">Totes</button>
+    </div>
+
+    <button id="btnIniciarQuiz">Iniciar Quiz</button>
+  </div>
+
+  <!-- Contenidor principal del quiz -->
+  <div id="quiz-container" style="display:none;">
+    <div id="pregunta" class="pregunta"></div>
+    <div id="opciones"></div>
+    <div id="resultat"></div>
+    <button id="btnConfirmar" disabled>Confirmar</button>
+
+    <div class="nav-buttons">
+      <button id="btnAnterior" disabled>Anterior</button>
+      <button id="btnSeguent" disabled>Següent</button>
+    </div>
+
+    <button id="btnRevision" style="display:none;">Revisar respostes</button>
+    <button id="btnReiniciar" style="display:none;">Reiniciar Quiz</button>
+  </div>
+
+  <div id="puntuatge"></div>
+
+<script>
+  // 📘 RA1: Banc de preguntes
+  const preguntasRA1 = [
+    { pregunta: "Quina estructura de dades fa servir FIFO?", opciones: ["Pila (Stack)", "Arbre binari", "Cua (Queue)", "Llista enllaçada"], respuesta: 2 },
+    { pregunta: "Quin llenguatge és fortament tipat?", opciones: ["JavaScript", "Python", "Java", "PHP"], respuesta: 2 },
+    { pregunta: "Què significa HTML?", opciones: ["HyperText Markup Language", "HighText Machine Language", "HyperTransfer Markup Language", "Hyper Tool Multi Language"], respuesta: 0 },
+    { pregunta: "Què fa CSS?", opciones: ["Donar estil a pàgines web", "Gestionar bases de dades", "Executar codi backend", "Controlar hardware"], respuesta: 0 },
+  ];
+
+  // 📗 RA2: Banc de preguntes
+  const preguntasRA2 = [
+    { pregunta: "Què significa JSON?", opciones: ["JavaScript Object Notation", "Java Standard Object Network", "Just Simple Object Naming", "Joint Source Online Network"], respuesta: 0 },
+    { pregunta: "Quina paraula clau defineix una constant a JavaScript?", opciones: ["let", "const", "var", "define"], respuesta: 1 },
+    { pregunta: "Quin operador s'usa per comparar igualtat estricta a JS?", opciones: ["==", "===", "=", "!="], respuesta: 1 },
+    { pregunta: "Quin llenguatge s'usa principalment per bases de dades?", opciones: ["Python", "SQL", "HTML", "C#"], respuesta: 1 },
+    { pregunta: "Quin comandament inicia un repositori Git?", opciones: ["git start", "git init", "git open", "git create"], respuesta: 1 },
+  ];
+
+  // 📚 Variables globals
+  let preguntas = [];
+  let totalPreguntas = 30;
+  let preguntaActual = 0;
+  let puntaje = 0;
+  let respuestasUsuario = [];
+  let modoRevision = false;
+  let opcionSeleccionada = null;
+
+  // 📦 Elements del DOM
+  const configContainer = document.getElementById('config-container');
+  const raButtons = document.getElementById('ra-buttons');
+  const numPreguntasButtons = document.getElementById('numPreguntas-buttons');
+  const btnIniciarQuiz = document.getElementById('btnIniciarQuiz');
+
+  const quizContainer = document.getElementById('quiz-container');
+  const preguntaEl = document.getElementById('pregunta');
+  const opcionesEl = document.getElementById('opciones');
+  const resultatEl = document.getElementById('resultat');
+  const btnConfirmar = document.getElementById('btnConfirmar');
+  const btnSeguent = document.getElementById('btnSeguent');
+  const btnAnterior = document.getElementById('btnAnterior');
+  const btnRevision = document.getElementById('btnRevision');
+  const btnReiniciar = document.getElementById('btnReiniciar');
+  const puntuatgeEl = document.getElementById('puntuatge');
+
+  // Funcions per manejar selecció botons configuració
+  function seleccionarBotonEnGrupo(container, boton) {
+    const botones = container.querySelectorAll('button');
+    botones.forEach(b => b.classList.remove('seleccionat'));
+    boton.classList.add('seleccionat');
+  }
+
+  // Esdeveniment per selecció RA
+  raButtons.addEventListener('click', e => {
+    if (e.target.tagName === 'BUTTON') {
+      seleccionarBotonEnGrupo(raButtons, e.target);
+    }
+  });
+
+  // Esdeveniment per selecció nombre de preguntes
+  numPreguntasButtons.addEventListener('click', e => {
+    if (e.target.tagName === 'BUTTON') {
+      seleccionarBotonEnGrupo(numPreguntasButtons, e.target);
+    }
+  });
+
+  // 🧩 Funció per barrejar aleatòriament un array
+  function mezclarArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  // 🎬 Inici del quiz després de configurar
+  btnIniciarQuiz.addEventListener('click', () => {
+    const raElegit = raButtons.querySelector('button.seleccionat').getAttribute('data-value');
+    const cantidadStr = numPreguntasButtons.querySelector('button.seleccionat').getAttribute('data-value');
+
+    // Seleccionar banc de preguntes segons RA
+    if (raElegit === "ra1") {
+      preguntas = [...preguntasRA1];
+    } else if (raElegit === "ra2") {
+      preguntas = [...preguntasRA2];
+    } else {
+      preguntas = [...preguntasRA1, ...preguntasRA2];
+    }
+
+    // Barrejar
+    mezclarArray(preguntas);
+
+    // Quantitat preguntes segons selecció
+    if (cantidadStr === 'todas') {
+      totalPreguntas = preguntas.length;
+    } else {
+      const cantidad = parseInt(cantidadStr);
+      totalPreguntas = (!isNaN(cantidad) && cantidad > 0) ? Math.min(cantidad, preguntas.length) : Math.min(30, preguntas.length);
+    }
+
+    preguntas = preguntas.slice(0, totalPreguntas);
+
+    // Canviar a vista quiz
+    configContainer.style.display = "none";
+    quizContainer.style.display = "block";
+
+    iniciarQuiz();
+  });
+
+  // 🚀 Lògica del quiz
+  function iniciarQuiz() {
+    preguntaActual = 0;
+    puntaje = 0;
+    respuestasUsuario = Array(totalPreguntas).fill(null);
+    modoRevision = false;
+    btnRevision.style.display = "none";
+    btnReiniciar.style.display = "none";
+    btnAnterior.style.display = "block";
+    btnSeguent.style.display = "block";
+    mostrarPregunta();
+  }
+
+  function mostrarPregunta() {
+    const pregunta = preguntas[preguntaActual];
+    const respuesta = respuestasUsuario[preguntaActual];
+
+    preguntaEl.textContent = `Pregunta ${preguntaActual + 1} de ${totalPreguntas}: ${pregunta.pregunta}`;
+    opcionesEl.innerHTML = "";
+    resultatEl.textContent = "";
+    btnConfirmar.disabled = true;
+
+    pregunta.opciones.forEach((opcion, index) => {
+      const btn = document.createElement('button');
+      btn.textContent = opcion;
+      btn.addEventListener('click', () => seleccionarOpcion(index, btn));
+      opcionesEl.appendChild(btn);
+    });
+
+    if (respuesta) {
+      const botones = opcionesEl.querySelectorAll('button');
+      botones.forEach(b => b.disabled = true);
+      botones[respuesta.correctaIndex].classList.add('correcta');
+      if (!respuesta.correcto) {
+        botones[respuesta.seleccionadaIndex].classList.add('incorrecta');
+        resultatEl.textContent = `Incorrecte ❌. La resposta correcta és: ${pregunta.opciones[pregunta.respuesta]}`;
+      } else {
+        resultatEl.textContent = "Correcte! 🤙";
+      }
+      btnConfirmar.disabled = true;
+    }
+
+    btnAnterior.disabled = preguntaActual === 0;
+    btnSeguent.disabled = !respuesta;
+
+    if (modoRevision) {
+      btnConfirmar.style.display = "none";
+      btnSeguent.textContent = preguntaActual === totalPreguntas - 1 ? "Finalitzar revisió" : "Següent";
+      btnSeguent.disabled = false;
+    } else {
+      btnConfirmar.style.display = "block";
+      btnSeguent.textContent = preguntaActual === totalPreguntas - 1 ? "Finalitzar" : "Següent";
+    }
+  }
+
+  function seleccionarOpcion(index, btn) {
+    if (respuestasUsuario[preguntaActual]) return;
+    const botones = opcionesEl.querySelectorAll('button');
+    botones.forEach(b => b.classList.remove('seleccionada'));
+    btn.classList.add('seleccionada');
+    opcionSeleccionada = index;
+    btnConfirmar.disabled = false;
+  }
+
+  btnConfirmar.addEventListener('click', () => {
+    if (opcionSeleccionada === null) return;
+    const pregunta = preguntas[preguntaActual];
+    const botones = opcionesEl.querySelectorAll('button');
+    botones.forEach(b => b.disabled = true);
+
+    const correcto = opcionSeleccionada === pregunta.respuesta;
+
+    if (correcto) {
+      botones[opcionSeleccionada].classList.remove('seleccionada');
+      botones[opcionSeleccionada].classList.add('correcta');
+      resultatEl.textContent = "Correcte! 🤙";
+      puntaje++;
+    } else {
+      botones[opcionSeleccionada].classList.remove('seleccionada');
+      botones[opcionSeleccionada].classList.add('incorrecta');
+      botones[pregunta.respuesta].classList.add('correcta');
+      resultatEl.textContent = `Incorrecte ❌. La resposta correcta és: ${pregunta.opciones[pregunta.respuesta]}`;
+    }
+
+    respuestasUsuario[preguntaActual] = {
+      seleccionadaIndex: opcionSeleccionada,
+      correctaIndex: pregunta.respuesta,
+      correcto
+    };
+
+    btnConfirmar.disabled = true;
+    btnSeguent.disabled = false;
+  });
+
+  btnSeguent.addEventListener('click', () => {
+    if (modoRevision) {
+      if (preguntaActual < totalPreguntas - 1) {
+        preguntaActual++;
+        mostrarPregunta();
+      } else {
+        mostrarResultados();
+      }
+      return;
+    }
+
+    if (preguntaActual < totalPreguntas - 1) {
+      preguntaActual++;
+      opcionSeleccionada = null;
+      mostrarPregunta();
+    } else {
+      mostrarResultados();
+    }
+  });
+
+  btnAnterior.addEventListener('click', () => {
+    if (preguntaActual > 0) {
+      preguntaActual--;
+      opcionSeleccionada = null;
+      mostrarPregunta();
+    }
+  });
+
+  function mostrarResultados() {
+    modoRevision = false;
+    preguntaEl.textContent = "Quiz acabat!";
+    opcionesEl.innerHTML = "";
+    resultatEl.innerHTML = "";
+
+    let resultadoHTML = "<h2>Resultats:</h2><ul>";
+    respuestasUsuario.forEach((r, i) => {
+      const p = preguntas[i];
+      resultadoHTML += `<li><b>Pregunta ${i + 1}:</b> ${p.pregunta}<br>
+        La teva resposta: ${p.opciones[r.seleccionadaIndex]} ${r.correcto ? "✅" : "❌"}<br>
+        Resposta correcta: ${p.opciones[r.correctaIndex]}</li><br>`;
+    });
+    resultadoHTML += "</ul>";
+
+    resultatEl.innerHTML = resultadoHTML;
+    puntuatgeEl.textContent = `Puntuació final: ${puntaje} de ${totalPreguntas}`;
+
+    btnConfirmar.style.display = "none";
+    btnAnterior.style.display = "none";
+    btnSeguent.style.display = "none";
+    btnRevision.style.display = "block";
+    btnReiniciar.style.display = "block";
+  }
+
+  btnRevision.addEventListener('click', () => {
+    modoRevision = true;
+    preguntaActual = 0;
+    btnRevision.style.display = "none";
+    btnReiniciar.style.display = "none";
+    btnAnterior.style.display = "block";
+    btnSeguent.style.display = "block";
+    mostrarPregunta();
+  });
+
+  btnReiniciar.addEventListener('click', () => location.reload());
+
+</script>
+
+</body>
+</html>
